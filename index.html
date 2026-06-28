@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<title>企画グリル — 自分専用</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --card2:#1f2430; --line:#2a3140;
+    --txt:#e7ebf2; --mut:#8a93a6; --acc:#ff7a3c; --acc2:#3ca0ff;
+    --ok:#37c98b; --warn:#ffcf4a; --bad:#ff5a6e; --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    -webkit-text-size-adjust:100%}
+  body{padding:0 0 96px;max-width:760px;margin:0 auto}
+  header{position:sticky;top:0;z-index:20;background:rgba(15,17,21,.92);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line);
+    padding:calc(env(safe-area-inset-top) + 12px) 16px 12px}
+  header h1{font-size:17px;margin:0;letter-spacing:.02em}
+  header h1 span{color:var(--acc)}
+  .sub{color:var(--mut);font-size:12px;margin-top:2px}
+  main{padding:16px}
+  .hide{display:none!important}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;margin-bottom:14px}
+  label{display:block;font-size:13px;color:var(--mut);margin:14px 0 6px;font-weight:600}
+  label .q{color:var(--acc);font-weight:800;margin-right:6px}
+  .hint{font-size:11.5px;color:var(--mut);font-weight:400;margin-top:3px;line-height:1.5}
+  input[type=text],input[type=date],textarea,select{
+    width:100%;background:var(--card2);border:1px solid var(--line);color:var(--txt);
+    border-radius:10px;padding:11px 12px;font-size:15px;font-family:inherit;outline:none}
+  input:focus,textarea:focus,select:focus{border-color:var(--acc2)}
+  textarea{resize:vertical;min-height:60px;line-height:1.5}
+  .btn{appearance:none;border:none;cursor:pointer;font-family:inherit;font-weight:700;
+    border-radius:11px;padding:12px 16px;font-size:14px;transition:filter .15s}
+  .btn:active{filter:brightness(.9)}
+  .btn-acc{background:var(--acc);color:#1a0d05}
+  .btn-ghost{background:var(--card2);color:var(--txt);border:1px solid var(--line)}
+  .btn-bad{background:transparent;color:var(--bad);border:1px solid var(--line)}
+  .btn-blk{width:100%}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .grow{flex:1}
+  .badge{display:inline-block;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;
+    letter-spacing:.03em}
+  .b-plan{background:#33271a;color:var(--warn)}
+  .b-run{background:#16314a;color:var(--acc2)}
+  .b-done{background:#16342a;color:var(--ok)}
+  .b-open{background:#3a1820;color:var(--bad)}
+  .proj{cursor:pointer;display:flex;flex-direction:column;gap:7px}
+  .proj h3{margin:0;font-size:16px;line-height:1.35}
+  .proj .meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .proj .goal{color:var(--mut);font-size:13px;line-height:1.5}
+  .proj .date{color:var(--mut);font-size:11.5px;font-variant-numeric:tabular-nums}
+  .empty{text-align:center;color:var(--mut);padding:48px 16px;font-size:14px;line-height:1.7}
+  .tasks{list-style:none;padding:0;margin:8px 0 0}
+  .tasks li{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line)}
+  .tasks li:first-child{border-top:none}
+  .tasks .chk{width:22px;height:22px;flex:0 0 22px;border-radius:6px;border:2px solid var(--line);
+    margin-top:1px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .tasks .chk.on{background:var(--ok);border-color:var(--ok);color:#06241a}
+  .tasks .tt{flex:1;font-size:14.5px;line-height:1.45}
+  .tasks .tt.done{text-decoration:line-through;color:var(--mut)}
+  .tasks .due{font-size:11px;color:var(--mut);font-variant-numeric:tabular-nums}
+  .tasks .due.over{color:var(--bad)}
+  .tasks .del{color:var(--mut);background:none;border:none;font-size:18px;cursor:pointer;padding:0 4px}
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;
+    background:rgba(20,23,30,.96);backdrop-filter:blur(8px);border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom)}
+  .nav button{flex:1;background:none;border:none;color:var(--mut);font-family:inherit;
+    padding:12px 4px 14px;font-size:11px;font-weight:700;cursor:pointer;display:flex;
+    flex-direction:column;align-items:center;gap:3px}
+  .nav button.on{color:var(--acc)}
+  .nav .ic{font-size:20px;line-height:1}
+  .sec-title{font-size:13px;font-weight:800;color:var(--acc);margin:4px 0 2px;letter-spacing:.04em}
+  .gate-note{background:var(--card2);border-left:3px solid var(--acc);border-radius:8px;
+    padding:10px 12px;font-size:12px;color:var(--mut);line-height:1.6;margin-bottom:8px}
+  .lock{background:#3a1820;border-left:3px solid var(--bad);border-radius:8px;padding:10px 12px;
+    font-size:12.5px;color:var(--warn);line-height:1.6;margin:10px 0}
+  .seg{display:flex;gap:6px;margin:6px 0 4px}
+  .seg button{flex:1;padding:9px;font-size:12.5px;font-weight:700;border-radius:9px;
+    border:1px solid var(--line);background:var(--card2);color:var(--mut);cursor:pointer}
+  .seg button.on{background:var(--acc2);color:#04243f;border-color:var(--acc2)}
+  .kv{font-size:13.5px;line-height:1.6;margin:9px 0;padding-bottom:9px;border-bottom:1px solid var(--line)}
+  .kv .k{color:var(--acc);font-weight:700;font-size:12px;display:block;margin-bottom:2px}
+  .kv .v{white-space:pre-wrap;word-break:break-word}
+  .kv .v.empty-v{color:var(--bad)}
+  .yr{font-size:12px;color:var(--mut);margin:18px 4px 8px;font-weight:800;letter-spacing:.04em;
+    border-bottom:1px solid var(--line);padding-bottom:6px}
+  .topbar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .topbar .back{background:var(--card2);border:1px solid var(--line);color:var(--txt);
+    border-radius:9px;padding:8px 12px;font-size:13px;cursor:pointer;font-weight:700}
+  .mini{font-size:11.5px;color:var(--mut)}
+  a.txtlink{color:var(--acc2);text-decoration:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>企画<span>グリル</span></h1>
+  <div class="sub">プロジェクト・企画専用 / 思考→整理→結果を1年分ためる</div>
+</header>
+
+<main id="main"></main>
+
+<nav class="nav">
+  <button id="nav-list" class="on" onclick="go('list')"><span class="ic">📚</span>履歴</button>
+  <button id="nav-new" onclick="go('new')"><span class="ic">✏️</span>新規</button>
+  <button id="nav-data" onclick="go('data')"><span class="ic">💾</span>データ</button>
+</nav>
+
+<script>
+"use strict";
+const KEY="grill_projects_v1";
+const $=s=>document.querySelector(s);
+const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const todayISO=()=>new Date().toISOString().slice(0,10);
+
+let DB=load();
+let view={name:"list",id:null};
+
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return[]}}
+function save(){localStorage.setItem(KEY,JSON.stringify(DB))}
+function find(id){return DB.find(p=>p.id===id)}
+
+const GATE=[
+  ["who","誰のため？","具体的に一人。属性・状況まで（例：入学半年の工業高校生10人、進路未定だがものづくり好き）"],
+  ["change","その人の何が、前→後でどう変わったら勝ち？","手段でなく相手の変化を書く（「〜を見せる」は手段。NG）"],
+  ["measure","どう測る？","観測できる証拠＋『何人中何人なら勝ち』の線を“事前に”引く"],
+  ["core","譲れない核は？","なぜこの手段か。他で代替できない理由＝企画の背骨"],
+  ["stopLine","やめる/削る判断ライン","“準備する”ではなく“○○なら削る/縮小する”という線を書く"],
+];
+const BACK=[
+  ["numbers","測った数字は？","解釈を入れず事実だけ"],
+  ["vsLine","事前の線を越えた/越えない、なぜ？",""],
+  ["nextAction","次に繋ぐ1アクションは？","これを書くまで企画は“終了”にしない"],
+];
+
+function gateComplete(p){return GATE.every(([k])=>(p.gate[k]||"").trim()) && (p.declaredTo||"").trim()}
+function backComplete(p){return BACK.every(([k])=>(p.back[k]||"").trim())}
+function statusBadge(p){
+  if(p.status==="planning")return '<span class="badge b-plan">計画中</span>';
+  if(p.status==="running")return '<span class="badge b-run">進行中</span>';
+  if(p.status==="done")return backComplete(p)
+    ? '<span class="badge b-done">完了</span>'
+    : '<span class="badge b-open">締め未完</span>';
+  return "";
+}
+
+function go(name,id){view={name,id:id||null};render();window.scrollTo(0,0)}
+function setNav(){["list","new","data"].forEach(n=>$("#nav-"+n).classList.toggle("on",view.name===n||(n==="list"&&view.name==="detail")))}
+
+function render(){
+  setNav();
+  if(view.name==="list")return renderList();
+  if(view.name==="new")return renderNew();
+  if(view.name==="detail")return renderDetail();
+  if(view.name==="data")return renderData();
+}
+
+/* ---------- 履歴一覧 ---------- */
+function renderList(){
+  const m=$("#main");
+  if(DB.length===0){
+    m.innerHTML=`<div class="empty">まだ企画がありません。<br>下の「✏️新規」から、<br>前ゲートを通して始めましょう。</div>`;
+    return;
+  }
+  const sorted=[...DB].sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+  let html="",curYear="";
+  for(const p of sorted){
+    const yr=p.createdAt.slice(0,4);
+    if(yr!==curYear){curYear=yr;html+=`<div class="yr">${yr}年</div>`;}
+    const goal=esc(p.gate.change||"（勝ち条件 未記入）");
+    html+=`<div class="card proj" onclick="go('detail','${p.id}')">
+      <div class="meta">${statusBadge(p)}<span class="date">${p.createdAt}</span></div>
+      <h3>${esc(p.title||"無題の企画")}</h3>
+      <div class="goal">🎯 ${goal}</div>
+    </div>`;
+  }
+  m.innerHTML=html;
+}
+
+/* ---------- 新規（前ゲート） ---------- */
+function renderNew(){
+  const m=$("#main");
+  let fields=`<label>企画タイトル<input type="text" id="f-title" placeholder="例：工業高校生の工場見学"></label>`;
+  for(const [k,q,h] of GATE){
+    fields+=`<label><span class="q">Q</span>${q}${h?`<div class="hint">${h}</div>`:""}
+      <textarea id="f-${k}"></textarea></label>`;
+  }
+  fields+=`<label>📣 宣言先（この企画の狙いを実施前に送る相手）
+    <div class="hint">所有者は「人に説明できると止まる」タイプ。送るまで進行中にできない＝最強のブレーキ。</div>
+    <input type="text" id="f-declaredTo" placeholder="例：田中課長 / 同僚の佐藤さん"></label>`;
+  m.innerHTML=`
+    <div class="sec-title">🚪 前ゲート（着手前・これを通すまで動かない）</div>
+    <div class="gate-note">5問＋宣言先がすべて埋まるまで「進行中」にできません。思いつきで突っ込むあなたを、ここで物理的に止めます。</div>
+    <div class="card">${fields}</div>
+    <button class="btn btn-acc btn-blk" onclick="createProject()">この企画を作成</button>
+    <div style="height:14px"></div>`;
+}
+function createProject(){
+  const p={id:uid(),createdAt:todayISO(),title:$("#f-title").value.trim(),
+    status:"planning",gate:{},declaredTo:$("#f-declaredTo").value.trim(),
+    tasks:[],back:{},doneAt:null};
+  for(const [k] of GATE)p.gate[k]=$("#f-"+k).value.trim();
+  for(const [k] of BACK)p.back[k]="";
+  if(!p.title){alert("タイトルを入れてください");return;}
+  DB.push(p);save();go("detail",p.id);
+}
+
+/* ---------- 詳細 ---------- */
+function renderDetail(){
+  const p=find(view.id);if(!p){go("list");return;}
+  const m=$("#main");
+  let gateHtml="";
+  for(const [k,q] of GATE){
+    const v=(p.gate[k]||"").trim();
+    gateHtml+=`<div class="kv"><span class="k">${q}</span><span class="v ${v?"":"empty-v"}">${v?esc(v):"未記入"}</span></div>`;
+  }
+  const dec=(p.declaredTo||"").trim();
+  gateHtml+=`<div class="kv"><span class="k">📣 宣言先</span><span class="v ${dec?"":"empty-v"}">${dec?esc(dec):"未記入"}</span></div>`;
+
+  // status segment
+  const canRun=gateComplete(p);
+  let seg=`<div class="seg">
+    <button class="${p.status==='planning'?'on':''}" onclick="setStatus('${p.id}','planning')">計画中</button>
+    <button class="${p.status==='running'?'on':''}" onclick="setStatus('${p.id}','running')">進行中</button>
+    <button class="${p.status==='done'?'on':''}" onclick="setStatus('${p.id}','done')">完了</button>
+  </div>`;
+  let lock="";
+  if(!canRun)lock=`<div class="lock">⚠️ 前ゲートが未完です（5問＋宣言先）。すべて埋めるまで「進行中／完了」にできません。<button class="btn btn-ghost" style="margin-top:8px" onclick="editGate('${p.id}')">前ゲートを編集</button></div>`;
+
+  // tasks
+  let taskItems="";
+  const ts=[...p.tasks].sort((a,b)=>(a.done-b.done)||((a.due||"9999").localeCompare(b.due||"9999")));
+  for(const t of ts){
+    const over=t.due&&!t.done&&t.due<todayISO();
+    taskItems+=`<li>
+      <div class="chk ${t.done?'on':''}" onclick="toggleTask('${p.id}','${t.id}')">${t.done?'✓':''}</div>
+      <div class="tt ${t.done?'done':''}">${esc(t.title)}${t.due?`<div class="due ${over?'over':''}">${over?'⚠ ':''}期日 ${t.due}</div>`:''}</div>
+      <button class="del" onclick="delTask('${p.id}','${t.id}')">×</button>
+    </li>`;
+  }
+  const taskCard=`<div class="card">
+    <div class="sec-title">✅ タスク</div>
+    <ul class="tasks">${taskItems||'<li style="color:var(--mut);border:none;font-size:13px">まだタスクなし</li>'}</ul>
+    <div class="row" style="margin-top:10px">
+      <input class="grow" type="text" id="t-title" placeholder="やること">
+      <input type="date" id="t-due" style="width:150px">
+    </div>
+    <button class="btn btn-ghost btn-blk" style="margin-top:8px" onclick="addTask('${p.id}')">＋ タスク追加</button>
+  </div>`;
+
+  // back gate
+  let backCard="";
+  if(p.status==="done"){
+    let bf="";
+    for(const [k,q,h] of BACK){
+      bf+=`<label><span class="q">A</span>${q}${h?`<div class="hint">${h}</div>`:""}
+        <textarea id="b-${k}">${esc(p.back[k]||"")}</textarea></label>`;
+    }
+    const open=!backComplete(p);
+    backCard=`<div class="card">
+      <div class="sec-title">🚪 後ゲート（実施後・“満足”で終わらせない）</div>
+      ${open?'<div class="lock">🔴 締め未完。ここを全部書くまで、この企画は「やりっぱなし」です。次に繋ぐ1アクションまで埋めて締めましょう。</div>':'<div class="gate-note">✓ 締め完了。お疲れさまでした。</div>'}
+      ${bf}
+      <button class="btn btn-acc btn-blk" style="margin-top:10px" onclick="saveBack('${p.id}')">後ゲートを保存</button>
+    </div>`;
+  }
+
+  m.innerHTML=`
+    <div class="topbar"><button class="back" onclick="go('list')">← 履歴</button>${statusBadge(p)}
+      <span class="date mini" style="margin-left:auto">${p.createdAt}</span></div>
+    <div class="card"><h3 style="margin:0 0 4px;font-size:18px">${esc(p.title)}</h3>
+      <div class="sec-title" style="margin-top:14px">ステータス</div>${seg}${lock}</div>
+    <div class="card"><div class="sec-title">🚪 前ゲート</div>
+      <button class="btn btn-ghost" style="float:right;margin-top:-26px;padding:6px 10px;font-size:12px" onclick="editGate('${p.id}')">編集</button>
+      ${gateHtml}</div>
+    ${taskCard}
+    ${backCard}
+    <button class="btn btn-bad btn-blk" style="margin:6px 0 20px" onclick="delProject('${p.id}')">この企画を削除</button>`;
+}
+
+function setStatus(id,s){
+  const p=find(id);
+  if((s==="running"||s==="done")&&!gateComplete(p)){
+    alert("前ゲート（5問＋宣言先）を埋めるまで進められません。");
+    return;
+  }
+  p.status=s;if(s==="done"&&!p.doneAt)p.doneAt=todayISO();
+  save();renderDetail();
+}
+function addTask(id){
+  const p=find(id),t=$("#t-title").value.trim();
+  if(!t)return;
+  p.tasks.push({id:uid(),title:t,due:$("#t-due").value||"",done:false});
+  save();renderDetail();
+}
+function toggleTask(id,tid){const p=find(id),t=p.tasks.find(x=>x.id===tid);t.done=!t.done;save();renderDetail();}
+function delTask(id,tid){const p=find(id);p.tasks=p.tasks.filter(x=>x.id!==tid);save();renderDetail();}
+function saveBack(id){const p=find(id);for(const[k]of BACK)p.back[k]=$("#b-"+k).value.trim();save();renderDetail();}
+function delProject(id){if(confirm("この企画を削除します。元に戻せません。よいですか？")){DB=DB.filter(p=>p.id!==id);save();go("list");}}
+
+/* 前ゲート編集（簡易：プロンプト無しでフォーム再利用） */
+function editGate(id){
+  const p=find(id);const m=$("#main");
+  let fields=`<label>企画タイトル<input type="text" id="e-title" value="${esc(p.title)}"></label>`;
+  for(const [k,q,h] of GATE)
+    fields+=`<label><span class="q">Q</span>${q}${h?`<div class="hint">${h}</div>`:""}<textarea id="e-${k}">${esc(p.gate[k]||"")}</textarea></label>`;
+  fields+=`<label>📣 宣言先<input type="text" id="e-declaredTo" value="${esc(p.declaredTo||"")}"></label>`;
+  m.innerHTML=`<div class="topbar"><button class="back" onclick="go('detail','${id}')">← 戻る</button></div>
+    <div class="sec-title">🚪 前ゲートを編集</div>
+    <div class="card">${fields}</div>
+    <button class="btn btn-acc btn-blk" onclick="saveGate('${id}')">保存</button><div style="height:20px"></div>`;
+}
+function saveGate(id){
+  const p=find(id);p.title=$("#e-title").value.trim()||p.title;
+  for(const[k]of GATE)p.gate[k]=$("#e-"+k).value.trim();
+  p.declaredTo=$("#e-declaredTo").value.trim();
+  save();go("detail",id);
+}
+
+/* ---------- データ（書き出し/読み込み） ---------- */
+function renderData(){
+  const m=$("#main");
+  m.innerHTML=`
+    <div class="card">
+      <div class="sec-title">💾 バックアップ（書き出し）</div>
+      <p class="mini" style="line-height:1.7">端末内（このブラウザ）だけにデータがあります。機種変更・キャッシュ削除で消えるので、定期的にJSONで書き出して保管してください。<b>1年分の履歴を守る命綱</b>です。</p>
+      <button class="btn btn-acc btn-blk" onclick="exportJSON()">JSONを書き出す（${DB.length}件）</button>
+    </div>
+    <div class="card">
+      <div class="sec-title">📥 復元（読み込み）</div>
+      <p class="mini" style="line-height:1.7">書き出したJSONを読み込みます。<b>現在のデータは上書き</b>されます。</p>
+      <input type="file" id="imp" accept="application/json" class="mini">
+      <button class="btn btn-ghost btn-blk" style="margin-top:10px" onclick="importJSON()">読み込んで上書き</button>
+    </div>
+    <div class="card mini" style="line-height:1.8">
+      <div class="sec-title">ℹ️ このアプリについて</div>
+      自分専用の企画/プロジェクト記録。前ゲート（着手前5問）と後ゲート（実施後3問）で、思いつきの場当たり実行と“やりっぱなし”を物理的に防ぎ、1年分の思考→結果を時系列でためます。サーバー無し・データは手元のみ。
+    </div>`;
+}
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download="grill-backup-"+todayISO()+".json";a.click();URL.revokeObjectURL(a.href);
+}
+function importJSON(){
+  const f=$("#imp").files[0];if(!f){alert("ファイルを選んでください");return;}
+  const r=new FileReader();
+  r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d))throw 0;
+    if(confirm("現在のデータを上書きします。よいですか？")){DB=d;save();alert("読み込みました（"+DB.length+"件）");go("list");}
+  }catch(e){alert("読み込めませんでした。正しいJSONか確認してください。")}};
+  r.readAsText(f);
+}
+
+render();
+</script>
+</body>
+</html>
