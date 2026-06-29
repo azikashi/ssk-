@@ -94,6 +94,16 @@
     border-radius:9px;padding:8px 12px;font-size:13px;cursor:pointer;font-weight:700}
   .mini{font-size:11.5px;color:var(--mut)}
   a.txtlink{color:var(--acc2);text-decoration:none}
+  .g-head{font-weight:800;font-size:13.5px;padding:10px 12px;border-radius:9px;margin-bottom:10px;line-height:1.5}
+  .g-head.ok{background:#16342a;color:var(--ok)}
+  .g-head.warn{background:#33271a;color:var(--warn)}
+  .g-row{font-size:13px;line-height:1.55;padding:9px 11px;border-radius:8px;margin-bottom:7px;
+    background:var(--card2);border-left:3px solid var(--line)}
+  .g-row b{display:block;font-size:11.5px;margin-bottom:2px}
+  .g-row.warn{border-left-color:var(--bad)}
+  .g-row.warn b{color:var(--bad)}
+  .g-row.ok{border-left-color:var(--ok)}
+  .g-row.ok b{color:var(--ok)}
 </style>
 </head>
 <body>
@@ -147,6 +157,71 @@ function statusBadge(p){
     ? '<span class="badge b-done">完了</span>'
     : '<span class="badge b-open">締め未完</span>';
   return "";
+}
+
+/* ---------- グリル（内蔵・記入内容へのコメント） ---------- */
+function hasDigit(s){return /[0-9０-９]/.test(s||"")}
+function gMeans(s){return /(見せ|配|開催|実施|案内|提供|催|やる|行う)/.test(s||"")}
+function gStop(s){return /(削|やめ|止め|中止|縮小|減ら|絞|しない|外す|見送|中断)/.test(s||"")}
+function gPrep(s){return /(準備|用意|仕込)/.test(s||"")}
+function grillGate(g,declaredTo){
+  const r=[];
+  const who=(g.who||"").trim();
+  r.push(who.length<6
+    ?{lv:"warn",t:"誰のため",m:"ふわっとしてる。具体的な“一人”（属性・状況）まで絞って。"}
+    :{lv:"ok",t:"誰のため",m:"具体的。誰の話か見える。"});
+  const ch=(g.change||"").trim();
+  if(!ch)r.push({lv:"warn",t:"何が変わったら勝ち",m:"未記入。相手の中で何が変わったら勝ち？"});
+  else if(gMeans(ch))r.push({lv:"warn",t:"何が変わったら勝ち",m:"それ“手段”寄り（〜を見せる/配る等）。相手の変化で書き直すと強い。"});
+  else r.push({lv:"ok",t:"何が変わったら勝ち",m:"相手の変化で書けてる。"});
+  const me=(g.measure||"").trim();
+  if(!me)r.push({lv:"warn",t:"どう測る",m:"未記入。観測できる証拠を1つ。"});
+  else if(!hasDigit(me))r.push({lv:"warn",t:"どう測る",m:"数字が無い＝測れない。『何人中何人なら勝ち』の線を入れて。"});
+  else r.push({lv:"ok",t:"どう測る",m:"数字の線が入ってる。実施前にこの数字を口に出せば逃げられない。"});
+  const co=(g.core||"").trim();
+  if(!co)r.push({lv:"warn",t:"譲れない核",m:"未記入。なぜこの手段だけ？を一言。"});
+  else if(co.length<6||/AIだから|なんとなく|とりあえず/.test(co))r.push({lv:"warn",t:"譲れない核",m:"“他では代替できない理由”が弱い。この手段でしか起きないことは？"});
+  else r.push({lv:"ok",t:"譲れない核",m:"背骨が立ってる。"});
+  const sl=(g.stopLine||"").trim();
+  if(!sl)r.push({lv:"warn",t:"やめる/削る線",m:"未記入。『○○なら削る/縮小』の“線”を1つ。"});
+  else if(gPrep(sl)&&!gStop(sl))r.push({lv:"warn",t:"やめる/削る線",m:"それ“準備”の話。撤退ラインは『○○なら削る/やめる』の形に。"});
+  else if(!gStop(sl))r.push({lv:"warn",t:"やめる/削る線",m:"“線”が曖昧。何がどうなったら削る/縮小する？"});
+  else r.push({lv:"ok",t:"やめる/削る線",m:"撤退ラインになってる。"});
+  r.push((declaredTo||"").trim()
+    ?{lv:"ok",t:"宣言先",m:"宣言先OK。実際に言うまでが前ゲート。"}
+    :{lv:"warn",t:"宣言先",m:"空。ここが空だと結局すっ飛ばす。誰に言う？"});
+  return r;
+}
+function grillBack(b){
+  const r=[];
+  const n=(b.numbers||"").trim();
+  if(!n)r.push({lv:"warn",t:"測った数字",m:"未記入。解釈でなく“測った数”を。"});
+  else if(!hasDigit(n))r.push({lv:"warn",t:"測った数字",m:"数字が無い。事実としての数を入れて。"});
+  else r.push({lv:"ok",t:"測った数字",m:"事実が数で残ってる。"});
+  r.push((b.vsLine||"").trim()
+    ?{lv:"ok",t:"線を越えた?なぜ",m:"理由まで書けてる。"}
+    :{lv:"warn",t:"線を越えた?なぜ",m:"未記入。事前の線に対しどうだった？なぜ？"});
+  const na=(b.nextAction||"").trim();
+  if(!na)r.push({lv:"warn",t:"次の1アクション",m:"未記入。ここを書くまで“終了”にしない。"});
+  else if(na.length<4)r.push({lv:"warn",t:"次の1アクション",m:"薄い。次の具体的な1手を。"});
+  else r.push({lv:"ok",t:"次の1アクション",m:"次に繋がってる。締めOK。"});
+  return r;
+}
+function grillHTML(rows){
+  const warn=rows.filter(r=>r.lv==="warn").length;
+  const head=warn===0
+    ?'<div class="g-head ok">🟢 隙なし。これで宣言して進め。</div>'
+    :`<div class="g-head warn">🟠 詰めが甘い箇所が ${warn}件。直して、もう一回グリル。</div>`;
+  return head+rows.map(r=>`<div class="g-row ${r.lv}"><b>${r.t}</b>${esc(r.m)}</div>`).join("");
+}
+function runGrill(id){
+  const p=find(id);let rows=grillGate(p.gate,p.declaredTo);
+  if(p.status==="done")rows=rows.concat(grillBack(p.back));
+  document.getElementById("grill-out").innerHTML=grillHTML(rows);
+}
+function runGrillEdit(){
+  const g={};for(const[k]of GATE)g[k]=document.getElementById("e-"+k).value;
+  document.getElementById("grill-out").innerHTML=grillHTML(grillGate(g,document.getElementById("e-declaredTo").value));
 }
 
 function go(name,id){view={name,id:id||null};render();window.scrollTo(0,0)}
@@ -270,6 +345,13 @@ function renderDetail(){
     </div>`;
   }
 
+  const grillCard=`<div class="card">
+    <div class="sec-title">🔥 グリル</div>
+    <p class="mini" style="line-height:1.6;margin:2px 0 10px">記入内容を、あなたの“いつもの抜け”に対してその場でツッコみます。直したら、もう一度押して詰め直し。</p>
+    <button class="btn btn-acc btn-blk" onclick="runGrill('${p.id}')">🔥 この内容をグリルしてもらう</button>
+    <div id="grill-out" style="margin-top:12px"></div>
+  </div>`;
+
   m.innerHTML=`
     <div class="topbar"><button class="back" onclick="go('list')">← 履歴</button>${statusBadge(p)}
       <span class="date mini" style="margin-left:auto">${p.createdAt}</span></div>
@@ -278,6 +360,7 @@ function renderDetail(){
     <div class="card"><div class="sec-title">🚪 前ゲート</div>
       <button class="btn btn-ghost" style="float:right;margin-top:-26px;padding:6px 10px;font-size:12px" onclick="editGate('${p.id}')">編集</button>
       ${gateHtml}</div>
+    ${grillCard}
     ${taskCard}
     ${backCard}
     <button class="btn btn-bad btn-blk" style="margin:6px 0 20px" onclick="delProject('${p.id}')">この企画を削除</button>`;
@@ -313,6 +396,8 @@ function editGate(id){
   m.innerHTML=`<div class="topbar"><button class="back" onclick="go('detail','${id}')">← 戻る</button></div>
     <div class="sec-title">🚪 前ゲートを編集</div>
     <div class="card">${fields}</div>
+    <button class="btn btn-ghost btn-blk" onclick="runGrillEdit()">🔥 今の内容をグリル</button>
+    <div id="grill-out" style="margin:12px 0"></div>
     <button class="btn btn-acc btn-blk" onclick="saveGate('${id}')">保存</button><div style="height:20px"></div>`;
 }
 function saveGate(id){
