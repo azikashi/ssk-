@@ -120,6 +120,7 @@
   <button id="nav-data" onclick="go('data')"><span class="ic">💾</span>データ</button>
 </nav>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 "use strict";
 const KEY="grill_projects_v1";
@@ -134,6 +135,61 @@ let view={name:"list",id:null};
 function load(){try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return[]}}
 function save(){localStorage.setItem(KEY,JSON.stringify(DB))}
 function find(id){return DB.find(p=>p.id===id)}
+
+/* ---------- Supabase 同期（複数端末でデータ共有・last-write-wins） ---------- */
+const SBK={url:"sb_url",key:"sb_key"};
+let SB=null, SESSION=null, SYNC_MSG="";
+function nowTS(){return new Date().toISOString()}
+function sbCfg(){return {url:localStorage.getItem(SBK.url)||"",key:localStorage.getItem(SBK.key)||""}}
+function initSB(){
+  const c=sbCfg();
+  if(!(c.url&&c.key&&window.supabase))return;
+  try{SB=window.supabase.createClient(c.url,c.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});}
+  catch(e){SB=null;return;}
+  SB.auth.onAuthStateChange((_e,s)=>{SESSION=s||null;if(SESSION)syncPull();if(view.name==="data")renderData();});
+  SB.auth.getSession().then(({data})=>{SESSION=data.session||null;if(SESSION)syncPull();if(view.name==="data")renderData();});
+}
+async function syncPush(p){
+  if(!SB||!SESSION||!p)return;
+  try{await SB.from("grill_projects").upsert({id:p.id,user_id:SESSION.user.id,data:p,updated_at:p.updatedAt||nowTS()},{onConflict:"user_id,id"});}
+  catch(e){console.warn("push",e)}
+}
+async function syncDelete(id){
+  if(!SB||!SESSION)return;
+  try{await SB.from("grill_projects").delete().eq("id",id);}catch(e){console.warn("del",e)}
+}
+async function syncPushAll(){for(const p of DB){if(!p.updatedAt)p.updatedAt=nowTS();await syncPush(p);}}
+async function syncPull(){
+  if(!SB||!SESSION)return;
+  try{
+    const {data,error}=await SB.from("grill_projects").select("*");
+    if(error){console.warn(error);return;}
+    const remote=(data||[]).map(r=>r.data).filter(Boolean);
+    const map={};
+    for(const p of DB)map[p.id]=p;
+    for(const rp of remote){const lp=map[rp.id];if(!lp||(rp.updatedAt||"")>(lp.updatedAt||""))map[rp.id]=rp;}
+    DB=Object.values(map);save();
+    for(const p of DB){const rp=remote.find(x=>x.id===p.id);if(!rp||(p.updatedAt||"")>(rp.updatedAt||""))syncPush(p);}
+    SYNC_MSG="最終同期 "+new Date().toLocaleString("ja-JP");
+    render();
+  }catch(e){console.warn("pull",e)}
+}
+function saveSBConfig(){
+  const url=$("#sb-url").value.trim().replace(/\/+$/,""), key=$("#sb-key").value.trim();
+  if(!url||!key){alert("URLとanon keyを両方入れてください");return;}
+  localStorage.setItem(SBK.url,url);localStorage.setItem(SBK.key,key);
+  initSB();alert("接続情報を保存しました。続けてメールでログインしてください。");renderData();
+}
+function clearSBConfig(){localStorage.removeItem(SBK.url);localStorage.removeItem(SBK.key);SB=null;SESSION=null;renderData();}
+async function sendMagicLink(){
+  if(!SB){alert("先に接続情報を保存してください");return;}
+  const email=$("#sb-email").value.trim();
+  if(!email){alert("メールアドレスを入れてください");return;}
+  const {error}=await SB.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
+  if(error){alert("送信に失敗："+error.message);return;}
+  alert("ログインリンクをメールに送りました。届いたリンクを“この端末”で開いてください。");
+}
+async function sbLogout(){if(SB){await SB.auth.signOut();SESSION=null;renderData();}}
 
 const GATE=[
   ["who","誰のため？","具体的に一人。属性・状況まで（例：入学半年の工業高校生10人、進路未定だがものづくり好き）"],
@@ -276,13 +332,13 @@ function renderNew(){
     <div style="height:14px"></div>`;
 }
 function createProject(){
-  const p={id:uid(),createdAt:todayISO(),title:$("#f-title").value.trim(),
+  const p={id:uid(),createdAt:todayISO(),updatedAt:nowTS(),title:$("#f-title").value.trim(),
     status:"planning",gate:{},declaredTo:$("#f-declaredTo").value.trim(),
     tasks:[],back:{},doneAt:null};
   for(const [k] of GATE)p.gate[k]=$("#f-"+k).value.trim();
   for(const [k] of BACK)p.back[k]="";
   if(!p.title){alert("タイトルを入れてください");return;}
-  DB.push(p);save();go("detail",p.id);
+  DB.push(p);save();syncPush(p);go("detail",p.id);
 }
 
 /* ---------- 詳細 ---------- */
@@ -373,18 +429,18 @@ function setStatus(id,s){
     return;
   }
   p.status=s;if(s==="done"&&!p.doneAt)p.doneAt=todayISO();
-  save();renderDetail();
+  p.updatedAt=nowTS();save();syncPush(p);renderDetail();
 }
 function addTask(id){
   const p=find(id),t=$("#t-title").value.trim();
   if(!t)return;
   p.tasks.push({id:uid(),title:t,due:$("#t-due").value||"",done:false});
-  save();renderDetail();
+  p.updatedAt=nowTS();save();syncPush(p);renderDetail();
 }
-function toggleTask(id,tid){const p=find(id),t=p.tasks.find(x=>x.id===tid);t.done=!t.done;save();renderDetail();}
-function delTask(id,tid){const p=find(id);p.tasks=p.tasks.filter(x=>x.id!==tid);save();renderDetail();}
-function saveBack(id){const p=find(id);for(const[k]of BACK)p.back[k]=$("#b-"+k).value.trim();save();renderDetail();}
-function delProject(id){if(confirm("この企画を削除します。元に戻せません。よいですか？")){DB=DB.filter(p=>p.id!==id);save();go("list");}}
+function toggleTask(id,tid){const p=find(id),t=p.tasks.find(x=>x.id===tid);t.done=!t.done;p.updatedAt=nowTS();save();syncPush(p);renderDetail();}
+function delTask(id,tid){const p=find(id);p.tasks=p.tasks.filter(x=>x.id!==tid);p.updatedAt=nowTS();save();syncPush(p);renderDetail();}
+function saveBack(id){const p=find(id);for(const[k]of BACK)p.back[k]=$("#b-"+k).value.trim();p.updatedAt=nowTS();save();syncPush(p);renderDetail();}
+function delProject(id){if(confirm("この企画を削除します。元に戻せません。よいですか？")){DB=DB.filter(p=>p.id!==id);save();syncDelete(id);go("list");}}
 
 /* 前ゲート編集（簡易：プロンプト無しでフォーム再利用） */
 function editGate(id){
@@ -404,13 +460,36 @@ function saveGate(id){
   const p=find(id);p.title=$("#e-title").value.trim()||p.title;
   for(const[k]of GATE)p.gate[k]=$("#e-"+k).value.trim();
   p.declaredTo=$("#e-declaredTo").value.trim();
-  save();go("detail",id);
+  p.updatedAt=nowTS();save();syncPush(p);go("detail",id);
 }
 
-/* ---------- データ（書き出し/読み込み） ---------- */
+/* ---------- データ（同期・書き出し/読み込み） ---------- */
+function syncCardHTML(){
+  const c=sbCfg();
+  if(!window.supabase)
+    return `<div class="card"><div class="sec-title">☁️ 同期（Supabase）</div>
+      <p class="mini" style="line-height:1.7">同期ライブラリを読み込めませんでした（オフライン or 通信ブロック）。オンラインで開き直すと使えます。今はこの端末内だけで動作中です。</p></div>`;
+  if(!c.url||!c.key)
+    return `<div class="card"><div class="sec-title">☁️ 同期（Supabase）</div>
+      <p class="mini" style="line-height:1.7">複数端末で共有するには、あなたのSupabaseプロジェクトの接続情報を入れてください。<b>この端末内だけに保存</b>され、リポジトリには含まれません。</p>
+      <label>Project URL<input type="text" id="sb-url" placeholder="https://xxxx.supabase.co"></label>
+      <label>anon public key<input type="text" id="sb-key" placeholder="eyJhbGci..."></label>
+      <button class="btn btn-acc btn-blk" style="margin-top:10px" onclick="saveSBConfig()">接続情報を保存</button></div>`;
+  if(!SESSION)
+    return `<div class="card"><div class="sec-title">☁️ 同期（Supabase）</div>
+      <p class="mini" style="line-height:1.7">接続OK。メールにログインリンクを送ります。<b>届いたリンクは“この端末”で開いて</b>ください。両端末で同じメアドでログインすれば同じデータになります。</p>
+      <label>メールアドレス<input type="text" id="sb-email" placeholder="you@example.com"></label>
+      <button class="btn btn-acc btn-blk" style="margin-top:10px" onclick="sendMagicLink()">ログインリンクを送る</button>
+      <button class="btn btn-ghost btn-blk" style="margin-top:8px" onclick="clearSBConfig()">接続情報を消す</button></div>`;
+  return `<div class="card"><div class="sec-title">☁️ 同期（Supabase）</div>
+    <p class="mini" style="line-height:1.7">✅ <b>${esc(SESSION.user.email||"ログイン中")}</b> で同期ON。${SYNC_MSG?("<br>"+esc(SYNC_MSG)):""}</p>
+    <button class="btn btn-acc btn-blk" onclick="syncPull()">↻ 今すぐ同期</button>
+    <button class="btn btn-ghost btn-blk" style="margin-top:8px" onclick="sbLogout()">ログアウト</button></div>`;
+}
 function renderData(){
   const m=$("#main");
   m.innerHTML=`
+    ${syncCardHTML()}
     <div class="card">
       <div class="sec-title">💾 バックアップ（書き出し）</div>
       <p class="mini" style="line-height:1.7">端末内（このブラウザ）だけにデータがあります。機種変更・キャッシュ削除で消えるので、定期的にJSONで書き出して保管してください。<b>1年分の履歴を守る命綱</b>です。</p>
@@ -424,7 +503,7 @@ function renderData(){
     </div>
     <div class="card mini" style="line-height:1.8">
       <div class="sec-title">ℹ️ このアプリについて</div>
-      自分専用の企画/プロジェクト記録。前ゲート（着手前5問）と後ゲート（実施後3問）で、思いつきの場当たり実行と“やりっぱなし”を物理的に防ぎ、1年分の思考→結果を時系列でためます。サーバー無し・データは手元のみ。
+      自分専用の企画/プロジェクト記録。前ゲート（着手前5問）と後ゲート（実施後3問）で、思いつきの場当たり実行と“やりっぱなし”を物理的に防ぎ、1年分の思考→結果を時系列でためます。Supabase未接続なら端末内のみ、接続＋ログインすれば複数端末で同期。
     </div>`;
 }
 function exportJSON(){
@@ -436,12 +515,13 @@ function importJSON(){
   const f=$("#imp").files[0];if(!f){alert("ファイルを選んでください");return;}
   const r=new FileReader();
   r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d))throw 0;
-    if(confirm("現在のデータを上書きします。よいですか？")){DB=d;save();alert("読み込みました（"+DB.length+"件）");go("list");}
+    if(confirm("現在のデータを上書きします。よいですか？")){DB=d;save();syncPushAll();alert("読み込みました（"+DB.length+"件）");go("list");}
   }catch(e){alert("読み込めませんでした。正しいJSONか確認してください。")}};
   r.readAsText(f);
 }
 
 render();
+initSB();
 </script>
 </body>
 </html>
